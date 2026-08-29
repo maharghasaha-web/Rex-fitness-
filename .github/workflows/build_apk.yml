@@ -57,8 +57,8 @@ jobs:
           # 4. Insert AdMob ID cleanly before </application> (valid XML)
           python3 -c "with open('android/app/src/main/AndroidManifest.xml') as f: x = f.read(); x = x.replace('</application>', '        <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"ca-app-pub-3940256099942544~3347511713\"/>\n    </application>'); open('android/app/src/main/AndroidManifest.xml', 'w').write(x)"
 
-          # 5. Set minimum SDK to 23
-          python3 -c "with open('android/app/build.gradle') as f: g = f.read(); g = g.replace('minSdkVersion = flutter.minSdkVersion', 'minSdkVersion = 23').replace('minSdk = flutter.minSdkVersion', 'minSdk = 23'); open('android/app/build.gradle', 'w').write(g)"
+          # 5. Set minimum SDK to 23 (supports both build.gradle and build.gradle.kts)
+          python3 -c "import glob; [open(p, 'w').write(open(p).read().replace('flutter.minSdkVersion', '23')) for p in glob.glob('android/app/build.gradle*')]"
 
           # 6. Fetch dependencies and compile APK
           flutter pub get
