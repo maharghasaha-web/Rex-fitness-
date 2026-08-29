@@ -19,49 +19,44 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Flutter SDK
+      - name: Set up Flutter 3.19.6
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.19.6'
           channel: 'stable'
 
-      - name: Create Clean App & Build APK
+      - name: Assemble & Compile APK
         run: |
-          # 1. Create a fresh Flutter app as suggested by Flutter CLI
+          # 1. Create clean project structure in runner
           cd /tmp
-          rm -rf fresh_app
-          flutter create -t app --org com.fitai.trainer fresh_app
-          cd fresh_app
+          rm -rf app_build
+          flutter create --org com.fitai.trainer app_build
+          cd app_build
           rm -rf lib/*
 
-          # 2. Copy all UI and logic Dart files into lib/
-          LIB_FOUND=$(find "$GITHUB_WORKSPACE" -type d -name "lib" | head -n 1)
-          if [ -n "$LIB_FOUND" ]; then
-            echo "Found lib directory at: $LIB_FOUND"
-            cp -r "$LIB_FOUND"/* lib/
+          # 2. Copy all code files into lib/
+          LIB_DIR=$(find "$GITHUB_WORKSPACE" -type d -name "lib" | head -n 1)
+          if [ -n "$LIB_DIR" ]; then
+            cp -r "$LIB_DIR"/* lib/
           else
-            echo "Gathering dart files and subdirectories into lib/..."
             cp "$GITHUB_WORKSPACE"/*.dart lib/ 2>/dev/null || true
-            for dir_name in screens models providers services widgets auth home nutrition physique workouts coach subscription activity; do
-              FOUND_DIR=$(find "$GITHUB_WORKSPACE" -maxdepth 3 -type d -name "$dir_name" | head -n 1)
-              if [ -n "$FOUND_DIR" ]; then
-                cp -r "$FOUND_DIR" lib/
-              fi
+            for d in screens models providers services widgets auth home nutrition physique workouts coach subscription activity; do
+              FOUND=$(find "$GITHUB_WORKSPACE" -maxdepth 3 -type d -name "$d" | head -n 1)
+              if [ -n "$FOUND" ]; then cp -r "$FOUND" lib/; fi
             done
           fi
 
-          # 3. Add project packages using pub add for full compatibility
+          # 3. Add required packages
           flutter pub add http image_picker google_mobile_ads fl_chart health shared_preferences provider
 
-          # 4. Insert AdMob ID before </application>
+          # 4. Inject Google AdMob ID & set minSdkVersion to 23
           python3 -c "with open('android/app/src/main/AndroidManifest.xml') as f: x = f.read(); x = x.replace('</application>', '        <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"ca-app-pub-3940256099942544~3347511713\"/>\n    </application>'); open('android/app/src/main/AndroidManifest.xml', 'w').write(x)"
-
-          # 5. Set minimum SDK to 23
           python3 -c "import glob; [open(p, 'w').write(open(p).read().replace('flutter.minSdkVersion', '23')) for p in glob.glob('android/app/build.gradle*')]"
 
-          # 6. Build the APK
+          # 5. Build the APK
           flutter build apk --debug
 
-          # 7. Move generated APK to output folder
+          # 6. Prepare download artifact
           mkdir -p "$GITHUB_WORKSPACE/output_apk"
           cp build/app/outputs/flutter-apk/app-debug.apk "$GITHUB_WORKSPACE/output_apk/ai_fitness_trainer.apk"
 
