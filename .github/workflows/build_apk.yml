@@ -19,22 +19,19 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Flutter 3.24.5
+      - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'
           channel: 'stable'
 
       - name: Assemble & Compile APK
         run: |
-          # 1. Create clean modern declarative Flutter project
           cd /tmp
           rm -rf app_build
-          flutter create --org com.fitai.trainer app_build
+          mkdir -p app_build/lib
           cd app_build
-          rm -rf lib/*
 
-          # 2. Copy source code files into lib/
+          # Copy application Dart files
           LIB_DIR=$(find "$GITHUB_WORKSPACE" -type d -name "lib" | head -n 1)
           if [ -n "$LIB_DIR" ]; then
             cp -r "$LIB_DIR"/* lib/
@@ -46,19 +43,36 @@ jobs:
             done
           fi
 
-          # 3. Add project dependencies
-          flutter pub add http image_picker google_mobile_ads fl_chart health shared_preferences provider
+          # Create project specification
+          echo "name: ai_fitness_trainer" > pubspec.yaml
+          echo "description: 'AI Personal Fitness Trainer'" >> pubspec.yaml
+          echo "version: 1.0.0+1" >> pubspec.yaml
+          echo "environment:" >> pubspec.yaml
+          echo "  sdk: '>=3.0.0 <4.0.0'" >> pubspec.yaml
+          echo "dependencies:" >> pubspec.yaml
+          echo "  flutter:" >> pubspec.yaml
+          echo "    sdk: flutter" >> pubspec.yaml
+          echo "  http: ^1.2.0" >> pubspec.yaml
+          echo "  image_picker: ^1.0.7" >> pubspec.yaml
+          echo "  google_mobile_ads: ^5.0.0" >> pubspec.yaml
+          echo "  fl_chart: ^0.66.2" >> pubspec.yaml
+          echo "  health: ^10.1.0" >> pubspec.yaml
+          echo "  shared_preferences: ^2.2.2" >> pubspec.yaml
+          echo "  provider: ^6.1.1" >> pubspec.yaml
+          echo "flutter:" >> pubspec.yaml
+          echo "  uses-material-design: true" >> pubspec.yaml
 
-          # 4. Insert AdMob ID cleanly before </application> (valid XML)
+          # Generate matching Android platform files
+          flutter create . --org com.fitai.trainer --platforms android --project-name ai_fitness_trainer
+
+          # Inject AdMob ID & set minimum SDK to 23
           python3 -c "with open('android/app/src/main/AndroidManifest.xml') as f: x = f.read(); x = x.replace('</application>', '        <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"ca-app-pub-3940256099942544~3347511713\"/>\n    </application>'); open('android/app/src/main/AndroidManifest.xml', 'w').write(x)"
-
-          # 5. Set minimum SDK to 23
           python3 -c "import glob; [open(p, 'w').write(open(p).read().replace('flutter.minSdkVersion', '23')) for p in glob.glob('android/app/build.gradle*')]"
 
-          # 6. Build the APK
+          # Build APK
           flutter build apk --debug
 
-          # 7. Move generated APK to output folder
+          # Move APK to output directory
           mkdir -p "$GITHUB_WORKSPACE/output_apk"
           cp build/app/outputs/flutter-apk/app-debug.apk "$GITHUB_WORKSPACE/output_apk/ai_fitness_trainer.apk"
 
