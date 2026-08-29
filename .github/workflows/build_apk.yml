@@ -19,17 +19,22 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Flutter
+      - name: Set up Flutter SDK
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
 
-      - name: Build Release APK
+      - name: Generate Gradle Wrapper & Build APK
         run: |
-          # Automatically find the directory containing pubspec.yaml
+          # 1. Locate directory containing pubspec.yaml
           APP_DIR=$(find . -name "pubspec.yaml" -not -path "*/.*" -exec dirname {} \; | head -n 1)
-          echo "Building Flutter project in: $APP_DIR"
+          echo "Building project in: $APP_DIR"
           cd "$APP_DIR"
+
+          # 2. Re-generate matching Android Gradle wrapper
+          flutter create . --org com.fitai.trainer --platforms android
+
+          # 3. Get dependencies and build release APK
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
 
