@@ -1,0 +1,19 @@
+name: ai_fitness_trainer
+description: "AI-Powered Personal Fitness, Conditioning & Nutrition Trainer App"
+version: 1.0.0+1
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  image_picker: ^1.0.7
+  google_mobile_ads: ^5.0.0
+  fl_chart: ^0.66.2
+  health: ^10.1.0 # Apple HealthKit & Google Health Connect
+  shared_preferences: ^2.2.2
+  provider: ^6.1.1
+
+flutter:
+  uses-material-design: true

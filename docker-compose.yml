@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # FastAPI AI Fitness Engine
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fitness_api_service
+    restart: always
+    environment:
+      - PROJECT_NAME=AI Fitness & Personal Trainer API
+      - API_V1_STR=/api/v1
+      - DATABASE_URL=postgresql://postgres:postgres_secure_pass@db:5432/fitness_app
+      - REDIS_URL=redis://redis:6379/0
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - NUTRITIONIX_APP_ID=${NUTRITIONIX_APP_ID}
+      - NUTRITIONIX_API_KEY=${NUTRITIONIX_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  # PostgreSQL Relational Database
+  db:
+    image: postgres:15-alpine
+    container_name: fitness_postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_secure_pass
+      POSTGRES_DB: fitness_app
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./app/db/postgres_schema.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+
+  # Redis for Token Caching & Rate Limiting
+  redis:
+    image: redis:7-alpine
+    container_name: fitness_redis_cache
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
