@@ -26,12 +26,12 @@ jobs:
 
       - name: Assemble & Compile APK
         run: |
-          # 1. Create a clean Flutter project workspace
+          # 1. Create clean Flutter project workspace
           cd /tmp
           flutter create --org com.fitai.trainer --platforms android app_workspace
           cd app_workspace
 
-          # 2. Copy source files (handles both structured lib/ or flat uploads)
+          # 2. Copy source code files into lib/
           LIB_FOUND=$(find "$GITHUB_WORKSPACE" -type d -name "lib" | head -n 1)
           if [ -n "$LIB_FOUND" ]; then
             echo "Found lib directory at: $LIB_FOUND"
@@ -54,18 +54,11 @@ jobs:
             cp "$PUBSPEC_PATH" pubspec.yaml
           fi
 
-          # 4. Inject Google AdMob ID into AndroidManifest.xml
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if [ -f "$MANIFEST" ]; then
-            sed -i '/<application/a \        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>' "$MANIFEST"
-          fi
+          # 4. Insert AdMob ID cleanly before </application> (valid XML)
+          python3 -c "with open('android/app/src/main/AndroidManifest.xml') as f: x = f.read(); x = x.replace('</application>', '        <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"ca-app-pub-3940256099942544~3347511713\"/>\n    </application>'); open('android/app/src/main/AndroidManifest.xml', 'w').write(x)"
 
-          # 5. Set minimum SDK to 23 for sensor and ad support
-          GRADLE_FILE="android/app/build.gradle"
-          if [ -f "$GRADLE_FILE" ]; then
-            sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' "$GRADLE_FILE" 2>/dev/null || true
-            sed -i 's/minSdkVersion .*/minSdkVersion 23/g' "$GRADLE_FILE" 2>/dev/null || true
-          fi
+          # 5. Set minimum SDK to 23
+          python3 -c "with open('android/app/build.gradle') as f: g = f.read(); g = g.replace('minSdkVersion = flutter.minSdkVersion', 'minSdkVersion = 23').replace('minSdk = flutter.minSdkVersion', 'minSdk = 23'); open('android/app/build.gradle', 'w').write(g)"
 
           # 6. Fetch dependencies and compile APK
           flutter pub get
