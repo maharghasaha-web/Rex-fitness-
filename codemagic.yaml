@@ -1,0 +1,25 @@
+workflows:
+  android-apk-build:
+    name: Build Android APK
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+      java: 17
+    scripts:
+      - name: Generate Android platform
+        script: |
+          flutter create . --platforms android --org com.fitai.trainer
+          python3 -c "with open('android/app/src/main/AndroidManifest.xml') as f: x = f.read(); x = x.replace('</application>', '        <meta-data android:name=\"com.google.android.gms.ads.APPLICATION_ID\" android:value=\"ca-app-pub-3940256099942544~3347511713\"/>\n    </application>'); open('android/app/src/main/AndroidManifest.xml', 'w').write(x)"
+          python3 -c "import glob; [open(p, 'w').write(open(p).read().replace('flutter.minSdkVersion', '23')) for p in glob.glob('android/app/build.gradle*')]"
+      - name: Get packages & Build APK
+        script: |
+          flutter pub get
+          flutter build apk --debug
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+    publishing:
+      email:
+        recipients:
+          - maharghasaha@gmail.com
+          
