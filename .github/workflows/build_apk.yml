@@ -13,7 +13,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -24,40 +24,45 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Configure Android SDK & Build APK
+      - name: Assemble & Compile APK
         run: |
-          # 1. Locate directory containing pubspec.yaml
-          APP_DIR=$(find . -name "pubspec.yaml" -not -path "*/.*" -exec dirname {} \; | head -n 1)
-          echo "Building in: $APP_DIR"
-          cd "$APP_DIR"
+          # 1. Locate source directory containing pubspec.yaml
+          SRC_DIR=$(find . -name "pubspec.yaml" -not -path "*/.*" -exec dirname {} \; | head -n 1)
+          echo "Found source files in: $SRC_DIR"
+          
+          # 2. Create clean Android project structure in a fresh directory
+          cd /tmp
+          flutter create --org com.fitai.trainer --platforms android app_workspace
+          cd app_workspace
 
-          # 2. Generate Android platform files
-          flutter create . --org com.fitai.trainer --platforms android
+          # 3. Copy our application files into the clean workspace
+          cp -r "$GITHUB_WORKSPACE/$SRC_DIR/lib" .
+          cp "$GITHUB_WORKSPACE/$SRC_DIR/pubspec.yaml" .
 
-          # 3. Add Google AdMob ID to AndroidManifest.xml
+          # 4. Inject Google AdMob ID into AndroidManifest.xml
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           if [ -f "$MANIFEST" ]; then
-            if ! grep -q "com.google.android.gms.ads.APPLICATION_ID" "$MANIFEST"; then
-              sed -i '/<application/a \        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>' "$MANIFEST"
-            fi
+            sed -i '/<application/a \        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>' "$MANIFEST"
           fi
 
-          # 4. Set minSdkVersion to 23 and compileSdkVersion to 34
-          APP_GRADLE="android/app/build.gradle"
-          if [ -f "$APP_GRADLE" ]; then
-            sed -i 's/minSdkVersion .*/minSdkVersion 23/g' "$APP_GRADLE"
-            sed -i 's/minSdk = .*/minSdk = 23/g' "$APP_GRADLE"
-            sed -i 's/compileSdkVersion .*/compileSdkVersion 34/g' "$APP_GRADLE"
-            sed -i 's/compileSdk = .*/compileSdk = 34/g' "$APP_GRADLE"
+          # 5. Set minimum SDK to 23 for sensor and ad support
+          GRADLE_FILE="android/app/build.gradle"
+          if [ -f "$GRADLE_FILE" ]; then
+            sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' "$GRADLE_FILE" 2>/dev/null || true
+            sed -i 's/minSdkVersion .*/minSdkVersion 23/g' "$GRADLE_FILE" 2>/dev/null || true
           fi
 
-          # 5. Fetch dependencies and compile release APK
+          # 6. Fetch packages and compile APK
           flutter pub get
-          flutter build apk --release --no-tree-shake-icons
+          flutter build apk --debug
+
+          # 7. Move generated APK to output folder
+          mkdir -p "$GITHUB_WORKSPACE/output_apk"
+          cp build/app/outputs/flutter-apk/app-debug.apk "$GITHUB_WORKSPACE/output_apk/ai_fitness_trainer.apk"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: "**/build/app/outputs/flutter-apk/app-release.apk"
+          name: ai_fitness_trainer_apk
+          path: output_apk/ai_fitness_trainer.apk
           
