@@ -24,17 +24,34 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Generate Gradle Wrapper & Build APK
+      - name: Configure Android SDK & Build APK
         run: |
           # 1. Locate directory containing pubspec.yaml
           APP_DIR=$(find . -name "pubspec.yaml" -not -path "*/.*" -exec dirname {} \; | head -n 1)
-          echo "Building project in: $APP_DIR"
+          echo "Building in: $APP_DIR"
           cd "$APP_DIR"
 
-          # 2. Re-generate matching Android Gradle wrapper
+          # 2. Generate Android platform files
           flutter create . --org com.fitai.trainer --platforms android
 
-          # 3. Get dependencies and build release APK
+          # 3. Add Google AdMob ID to AndroidManifest.xml
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST" ]; then
+            if ! grep -q "com.google.android.gms.ads.APPLICATION_ID" "$MANIFEST"; then
+              sed -i '/<application/a \        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713"/>' "$MANIFEST"
+            fi
+          fi
+
+          # 4. Set minSdkVersion to 23 and compileSdkVersion to 34
+          APP_GRADLE="android/app/build.gradle"
+          if [ -f "$APP_GRADLE" ]; then
+            sed -i 's/minSdkVersion .*/minSdkVersion 23/g' "$APP_GRADLE"
+            sed -i 's/minSdk = .*/minSdk = 23/g' "$APP_GRADLE"
+            sed -i 's/compileSdkVersion .*/compileSdkVersion 34/g' "$APP_GRADLE"
+            sed -i 's/compileSdk = .*/compileSdk = 34/g' "$APP_GRADLE"
+          fi
+
+          # 5. Fetch dependencies and compile release APK
           flutter pub get
           flutter build apk --release --no-tree-shake-icons
 
